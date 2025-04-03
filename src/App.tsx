@@ -1,21 +1,146 @@
-import React from 'react';
-import { Bell } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Bell, ThumbsUp, MessageCircle, Share2, ExternalLink, Trash2 } from 'lucide-react';
+import { FacebookPost } from './types';
 
 function App() {
-  return (
-    <div className="w-80 p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
-      <div className="flex items-center gap-3 mb-4">
-        <Bell className="w-6 h-6 text-indigo-600" />
-        <h1 className="text-xl font-semibold text-gray-800">PostList</h1>
+  const [posts, setPosts] = useState<FacebookPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Load posts from storage
+    const loadPosts = () => {
+      setIsLoading(true);
+      chrome.storage.local.get(['posts'], (result) => {
+        if (result.posts) {
+          setPosts(result.posts);
+        }
+        setIsLoading(false);
+      });
+    };
+
+    loadPosts();
+
+    // Listen for storage changes
+    chrome.storage.onChanged.addListener((changes) => {
+      if (changes.posts) {
+        setPosts(changes.posts.newValue || []);
+      }
+    });
+  }, []);
+
+  const clearAllPosts = () => {
+    if (window.confirm('Are you sure you want to clear all tracked posts?')) {
+      chrome.storage.local.remove(['posts'], () => {
+        setPosts([]);
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-[400px] h-[300px] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+        <div className="text-indigo-600">Loading...</div>
       </div>
-      <p className="text-gray-600 text-sm">
-        This extension will alert you when you visit Facebook.
-      </p>
+    );
+  }
+
+  return (
+    <div className="w-[400px] p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Bell className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-xl font-semibold text-gray-800">PostList</h1>
+        </div>
+        {posts.length > 0 && (
+          <button
+            onClick={clearAllPosts}
+            className="flex items-center gap-1 px-2 py-1 text-sm text-red-600 hover:text-red-700 transition-colors"
+            title="Clear all posts"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Clear All</span>
+          </button>
+        )}
+      </div>
+
       <div className="mt-4 p-3 bg-white rounded-lg shadow-sm border border-indigo-100">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-gray-700 mb-2">
           Status: <span className="text-green-600 font-medium">Active</span>
         </p>
+        <p className="text-sm text-gray-700">
+          Posts tracked: <span className="font-medium">{posts.length}</span>
+        </p>
       </div>
+      
+      {posts.length === 0 ? (
+        <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-indigo-100 text-center text-gray-600">
+          No posts tracked yet. Start browsing Facebook to collect posts.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4 max-h-[500px] overflow-y-auto">
+          {posts.map((post) => (
+            <div key={post.id} className="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
+              <div className="flex justify-between items-start mb-3">
+                <a 
+                  href={post.profileLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  {post.author}
+                </a>
+                <span className="text-xs text-gray-500">
+                  {new Date(post.timestamp).toLocaleString()}
+                </span>
+              </div>
+              
+              <p className="text-sm text-gray-700 mb-3 line-clamp-3">
+                {post.content}
+              </p>
+
+              {post.imageUrl && (
+                <div className="mb-3 rounded-lg overflow-hidden">
+                  <img 
+                    src={post.imageUrl} 
+                    alt="Post content" 
+                    className="w-full h-auto object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <ThumbsUp className="w-4 h-4" />
+                    <span>{post.likes || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>{post.comments || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Share2 className="w-4 h-4" />
+                    <span>{post.shares || 0}</span>
+                  </div>
+                </div>
+                
+                {post.postUrl && (
+                  <a
+                    href={post.postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>View Post</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
