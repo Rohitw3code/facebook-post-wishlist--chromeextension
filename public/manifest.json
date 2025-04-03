@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "PostList Facebook Alert",
+  "version": "1.0",
+  "description": "A beautiful alert box when Facebook is detected",
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.facebook.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "index.html"
+  }
+}
