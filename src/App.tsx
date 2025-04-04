@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, ThumbsUp, MessageCircle, Share2, ExternalLink, Trash2 } from 'lucide-react';
+import { Bell, ExternalLink, Trash2 } from 'lucide-react';
 import { FacebookPost } from './types';
 
 function App() {
@@ -64,9 +64,6 @@ function App() {
       </div>
 
       <div className="mt-4 p-3 bg-white rounded-lg shadow-sm border border-indigo-100">
-        <p className="text-sm text-gray-700 mb-2">
-          Status: <span className="text-green-600 font-medium">Active</span>
-        </p>
         <p className="text-sm text-gray-700">
           Posts tracked: <span className="font-medium">{posts.length}</span>
         </p>
@@ -81,20 +78,15 @@ function App() {
           {posts.map((post) => (
             <div key={post.id} className="bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
               <div className="flex justify-between items-start mb-3">
-                <a 
-                  href={post.profileLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                >
+                <span className="text-sm font-medium text-gray-800">
                   {post.author}
-                </a>
+                </span>
                 <span className="text-xs text-gray-500">
                   {new Date(post.timestamp).toLocaleString()}
                 </span>
               </div>
               
-              <p className="text-sm text-gray-700 mb-3 line-clamp-3">
+              <p className="text-sm text-gray-700 mb-3">
                 {post.content}
               </p>
 
@@ -109,34 +101,19 @@ function App() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <ThumbsUp className="w-4 h-4" />
-                    <span>{post.likes || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageCircle className="w-4 h-4" />
-                    <span>{post.comments || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Share2 className="w-4 h-4" />
-                    <span>{post.shares || 0}</span>
-                  </div>
-                </div>
-                
-                {post.postUrl && (
+              {post.postUrl && (
+                <div className="text-right">
                   <a
                     href={post.postUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700"
+                    className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-sm"
                   >
                     <ExternalLink className="w-4 h-4" />
-                    <span>View Post</span>
+                    <span>Open Post</span>
                   </a>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

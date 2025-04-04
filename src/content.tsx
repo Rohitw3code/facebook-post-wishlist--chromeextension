@@ -18,24 +18,13 @@ function AlertBox() {
     // Function to extract post data
     const extractPostData = (postElement: Element): FacebookPost | null => {
       try {
-        // Find the author element - looking for the profile link
         const authorElement = postElement.querySelector('a[role="link"][tabindex="0"]');
-        
-        // Find the content element - looking for post text content
         const contentElement = postElement.querySelector('div[dir="auto"][style*="text-align"]');
-        
-        // Find the timestamp element
         const timestampElement = postElement.querySelector('a[role="link"][tabindex="0"][href*="?__cft__"]');
-
-        // Find image elements
         const imageElement = postElement.querySelector('img[src*="scontent"]');
-
-        // Find engagement stats
         const likesElement = postElement.querySelector('span[role="toolbar"]');
         const commentsElement = postElement.querySelector('span[role="presentation"]:has(span)');
         const sharesElement = postElement.querySelector('div[role="button"]:has(span)');
-
-        // Find post URL
         const postUrlElement = postElement.querySelector('a[href*="/posts/"]');
 
         if (!authorElement || !contentElement) return null;
@@ -60,6 +49,69 @@ function AlertBox() {
       }
     };
 
+    // Function to inject save button into post
+    const injectSaveButton = (postElement: Element) => {
+      // Check if button already exists
+      if (postElement.querySelector('.postlist-save-btn')) return;
+
+      const postData = extractPostData(postElement);
+      if (!postData) return;
+
+      const buttonContainer = document.createElement('div');
+      buttonContainer.className = 'postlist-save-btn-container';
+
+      const saveButton = document.createElement('button');
+      saveButton.className = 'postlist-save-btn';
+      saveButton.innerHTML = `
+        <span class="postlist-save-icon">📥</span>
+        <span class="postlist-save-text">Save to PostList</span>
+      `;
+
+      saveButton.addEventListener('click', () => {
+        setPosts(prevPosts => {
+          // Check if post already exists
+          const isDuplicate = prevPosts.some(p => 
+            p.content === postData.content && 
+            p.author === postData.author
+          );
+
+          if (isDuplicate) {
+            alert('This post has already been saved!');
+            return prevPosts;
+          }
+
+          const updatedPosts = [...prevPosts, postData];
+          // Keep only the last 100 posts
+          if (updatedPosts.length > 100) {
+            updatedPosts.shift();
+          }
+
+          // Save to storage
+          chrome.storage.local.set({ posts: updatedPosts });
+
+          // Update button state
+          saveButton.classList.add('saved');
+          saveButton.innerHTML = `
+            <span class="postlist-save-icon">✓</span>
+            <span class="postlist-save-text">Saved</span>
+          `;
+          setTimeout(() => {
+            saveButton.disabled = true;
+          }, 1000);
+
+          return updatedPosts;
+        });
+      });
+
+      buttonContainer.appendChild(saveButton);
+
+      // Find a good spot to inject the button (after the post content)
+      const targetElement = postElement.querySelector('[role="article"] > div');
+      if (targetElement) {
+        targetElement.appendChild(buttonContainer);
+      }
+    };
+
     // Function to observe DOM changes for new posts
     const observePosts = () => {
       const observer = new MutationObserver((mutations) => {
@@ -68,30 +120,7 @@ function AlertBox() {
             if (node instanceof HTMLElement) {
               // Look for post containers
               const postElements = node.querySelectorAll('[role="article"]');
-              
-              postElements.forEach((postElement) => {
-                const postData = extractPostData(postElement);
-                if (postData) {
-                  setPosts((prevPosts) => {
-                    // Check if post already exists based on content and author
-                    const isDuplicate = prevPosts.some(p => 
-                      p.content === postData.content && 
-                      p.author === postData.author
-                    );
-
-                    if (isDuplicate) {
-                      return prevPosts;
-                    }
-
-                    // Keep only the last 100 posts to prevent storage issues
-                    const updatedPosts = [...prevPosts, postData];
-                    if (updatedPosts.length > 100) {
-                      updatedPosts.shift(); // Remove oldest post
-                    }
-                    return updatedPosts;
-                  });
-                }
-              });
+              postElements.forEach(injectSaveButton);
             }
           });
         });
@@ -103,25 +132,15 @@ function AlertBox() {
         subtree: true
       });
 
+      // Also process any existing posts
+      document.querySelectorAll('[role="article"]').forEach(injectSaveButton);
+
       return observer;
     };
 
     const observer = observePosts();
     return () => observer.disconnect();
   }, []);
-
-  // Save posts to extension storage whenever posts change
-  useEffect(() => {
-    if (posts.length > 0) {
-      chrome.storage.local.set({ posts }, () => {
-        if (chrome.runtime.lastError) {
-          console.error('Error saving posts:', chrome.runtime.lastError);
-        } else {
-          console.log('Posts saved successfully:', posts.length);
-        }
-      });
-    }
-  }, [posts]);
 
   if (!isVisible) return null;
 
@@ -141,7 +160,7 @@ function AlertBox() {
           You are currently browsing Facebook. Stay mindful of your time!
         </p>
         <p className="text-gray-600 text-sm mt-2">
-          Posts tracked: {posts.length}
+          Posts saved: {posts.length}
         </p>
       </div>
     </div>
@@ -151,6 +170,50 @@ function AlertBox() {
 // Create container for the alert
 const container = document.createElement('div');
 document.body.appendChild(container);
+
+// Add styles for the save button
+const styles = document.createElement('style');
+styles.textContent = `
+  .postlist-save-btn-container {
+    margin: 8px 16px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .postlist-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background-color: #4f46e5;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .postlist-save-btn:hover {
+    background-color: #4338ca;
+  }
+
+  .postlist-save-btn.saved {
+    background-color: #22c55e;
+    cursor: default;
+  }
+
+  .postlist-save-btn:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+
+  .postlist-save-icon {
+    font-size: 16px;
+  }
+`;
+document.head.appendChild(styles);
 
 // Render the alert
 const root = createRoot(container);
